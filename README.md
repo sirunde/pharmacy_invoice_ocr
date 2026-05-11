@@ -5,6 +5,11 @@ This repository is designed to simplify the process of loading pharmacy inventor
 Instead of manually entering invoice data, you can simply take a picture of your invoice and upload it into the GUI. The system uses **EasyOCR** to extract the data and allow fast editing and confirmation.
 
 ---
+- Python
+- EasyOCR
+- PYQT6
+- Page_dewarp is from https://github.com/mzucker/page_dewarp/blob/master/page_dewarp.py, and fixed some of the lines for the python3.
+---
 
 1. **Upload Image**
    - Take a picture of the invoice and upload it in the GUI.
@@ -38,12 +43,7 @@ You can also directly edit the table while running, making it easy to quickly fi
 - Improved OCR accuracy and invoice parsing
 - Expanded inventory mapping automation
 
----
-- Python
-- EasyOCR
-- PYQT6
 
----
 
 ## This tool is built to reduce manual data entry time and improve accuracy when importing inventory into RX systems. It is still under active development, and features are being expanded continuously.
 ~~if I am still working at the pharmacy~~
