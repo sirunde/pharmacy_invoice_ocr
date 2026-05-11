@@ -279,7 +279,7 @@ class App(QWidget):
     def __init__(self):
         super().__init__()
 
-        self.setWindowTitle("OCR + Overlay + Sync DataFrame")
+        self.setWindowTitle("Invoice OCR")
         self.resize(1200, 800)
 
         self.file_path = None
