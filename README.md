@@ -1,49 +1,65 @@
 # RX Inventory Loader
 
-This repository is designed to simplify the process of loading pharmacy inventory into RX.
+RX Inventory Loader is a desktop tool designed to simplify pharmacy inventory data entry from invoices.
 
-Instead of manually entering invoice data, you can simply take a picture of your invoice and upload it into the GUI. The system uses **EasyOCR** to extract the data and allow fast editing and confirmation.
+Instead of manually entering invoice line items, you can upload a PDF or CSV invoice, extract structured data
+automatically, and quickly correct or confirm entries using a fast keyboard-driven overlay interface.
 
----
+The goal is to reduce manual entry time and improve accuracy when importing inventory into RX systems.
+
+## Features
+
+- Upload and process CSV or PDF invoices
+- Automatic data extraction from supported formats
+- Fast editing overlay for quick corrections
+- Keyboard-driven workflow optimized for pharmacy data entry
+- Supports multiple distributor formats (Kinray, McKesson, etc.)
+- Editable table view during runtime for real-time adjustments
+
+## Tech Stack
+
 - Python
-- EasyOCR
-- PYQT6
-- Page_dewarp is from https://github.com/mzucker/page_dewarp/blob/master/page_dewarp.py, and fixed some of the lines for the python3.
----
+- PyQt6 (GUI)
+- pdfplumber (PDF parsing)
+- pandas (CSV processing)
+- Page dewarping utility from:
+  https://github.com/mzucker/page_dewarp (modified for Python 3 compatibility)
 
-1. **Upload Image**
-   - Take a picture of the invoice and upload it in the GUI.
+> Note: EasyOCR was removed due to performance and executable size constraints.
+>
 
-2. **Run OCR**
-   - The system uses EasyOCR to extract invoice data automatically.
+## Supported Formats
 
-3. **Start Overlay Editor**
-   - A table overlay appears for fast manual correction and entry.
+- Kinray invoices (CSV)
+- McKesson invoices (PDF)
+- Smith (planned / not yet implemented)
 
----
+## Workflow
 
-While editing the overlay:
+1. Upload file
+    - Select and upload a CSV or PDF invoice
 
-- `PgUp` → Paste NDC
-- `End` → Paste Quantity (uses invoiced QTY)
-- `-` → Enter Price
-- `=` → Move to next row
+2. Process data
+    - CSV files are parsed using pandas
+    - PDF files are parsed using pdfplumber
+    - Custom parsing logic in parsers.py handles normalization and formatting
 
-You can also directly edit the table while running, making it easy to quickly fix OCR errors or adjust values.
+3. Data overlay
+    - A floating table overlay appears for quick review and correction
+    - Users can edit values directly or use keyboard shortcuts for faster entry
 
----
+## Keyboard Shortcuts (Overlay Mode)
 
-- Kinray invoices (currently supported)
-- MCK (not yet)
-- Smith (not yet)
+- PgUp → Paste NDC and submit
+- End / PgDn → Paste date, quantity, and price in sequence
+- F2 / Home → Move to next row
+- Del → Move to previous row
 
----
-## Working on
-- Direct PDF import from distributor websites
-- Improved OCR accuracy and invoice parsing
-- Expanded inventory mapping automation
+You can also directly edit table cells while the system is running.
 
+## Purpose
 
+This tool is built to reduce manual data entry time and improve accuracy when importing pharmacy inventory into RX
+systems.
 
-## This tool is built to reduce manual data entry time and improve accuracy when importing inventory into RX systems. It is still under active development, and features are being expanded continuously.
-~~if I am still working at the pharmacy~~
+It is actively being developed, and features are continuously being improved and expanded.
