@@ -296,7 +296,7 @@ class GlobalController:
     def paste(self, value):
         value = "" if value is None else str(value)
         pyperclip.copy(value)
-        pyautogui.hotkey("ctrl", "v")
+        pyperclip.paste()
         time.sleep(0.08)
 
     def press_enter(self):
