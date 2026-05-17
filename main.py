@@ -32,8 +32,14 @@ from parsers import pdfParser, csvParser
 
 # ================= LOGGING =================
 
+def get_base_dir():
+    if getattr(sys, 'frozen', False):  # PyInstaller check
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.abspath(__file__))
+
+
 def setup_logging():
-    base_dir = os.path.dirname(os.path.abspath(__file__))
+    base_dir = get_base_dir()
     log_dir = os.path.join(base_dir, "logs", "Invoices")
     os.makedirs(log_dir, exist_ok=True)
 
@@ -296,7 +302,7 @@ class GlobalController:
     def paste(self, value):
         value = "" if value is None else str(value)
         pyperclip.copy(value)
-        pyperclip.paste()
+        pyautogui.write(value, interval=0.01)
         time.sleep(0.08)
 
     def press_enter(self):

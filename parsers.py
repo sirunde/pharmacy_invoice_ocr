@@ -2,6 +2,7 @@ import pdfplumber
 import pandas as pd
 import numpy as np
 import os
+from decimal import Decimal
 
 all_tables = []
 
@@ -21,31 +22,30 @@ def kinray(text):
                 value = None
 
                 if items[2][0].isdigit():
-                    ndc = items[0]
+                    ndc = items[2]
                 else:
                     continue
                 if items[5][0].isdigit():
-                    qty = float(items[5])
+                    qty = Decimal(float(items[5]))
                 else:
                     continue
                 extended = False
                 for i in items[-1::-1]:
                     try:
+                        value = Decimal(i.replace(",", ""))
+
                         if not extended:
-                            value = float(i.replace(",", ""))
-                            extended_price = float(value)
+                            extended_price = value
                             extended = True
                         else:
-                            value = float(i.replace(",", ""))
-                            price = float(value)
+                            price = value
                             break
 
-
-                    except ValueError:
+                    except:
                         continue
 
                 if price:
-                    if(extended_price == qty*price):
+                    if extended_price == qty * price:
                         rows.append((ndc, qty, price, extended_price))
                     else:
                         rows.append((ndc))
@@ -70,23 +70,35 @@ def mck(text):
                 else:
                     continue
                 if items[3][0].isdigit():
-                    qty = float(items[3])
+                    qty = Decimal(float(items[3]))
                 else:
                     continue
-                for i in items[-2::-1]:
+                extended = False
+
+                for i in items[-1::-1]:
                     try:
-                        value = float(i.replace(",", ""))
-                        price = float(value)
-                        break
-                    except ValueError:
+                        value = Decimal(i.replace(",", ""))
+
+                        if not extended:
+                            extended_price = value
+                            extended = True
+                        else:
+                            price = value
+                            break
+
+                    except:
                         continue
                 if price:
-                    rows.append((ndc, qty, price, price * qty))
+                    if extended_price == qty * price:
+                        rows.append((ndc, qty, price, extended_price))
+                    else:
+                        rows.append((ndc))
 
     return rows
 
 
 def pdfParser(pdf_path):
+
     with pdfplumber.open(pdf_path) as pdf:
         rows = []
 
@@ -126,6 +138,7 @@ def csvParser(csv_path):
     })
     return df
 
+
 if __name__ == "__main__":
-    path = "kinray.pdf"
-    a= pdfParser(path)
+    path = "test.pdf"
+    a = pdfParser(path)
