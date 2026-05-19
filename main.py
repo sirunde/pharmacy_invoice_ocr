@@ -231,7 +231,7 @@ class Overlay(QWidget):
             f"TOTAL: {r.get('TOTAL_PRICE', '')}\n"
             f"DATE: {self.controller.date_value}\n"
             f"STATE: {self.controller.state}\n"
-            f"PgUp=NDC | PgDn/End=SEQ | Home/F2=NEXT | Del=PREV"
+            f"PgUp=NDC | PgDn=SEQ | Home/F2=NEXT | Del=PREV"
         )
 
     def closeEvent(self, event):
@@ -277,7 +277,7 @@ class GlobalController:
 
             # Both Page Down and End will send the sequence.
             self.hotkeys.append(keyboard.add_hotkey("page down", self._safe_hotkey(self.send_sequence)))
-            self.hotkeys.append(keyboard.add_hotkey("end", self._safe_hotkey(self.send_sequence)))
+            # self.hotkeys.append(keyboard.add_hotkey("end", self._safe_hotkey(self.send_sequence)))
 
             self.hotkeys.append(keyboard.add_hotkey("home", self._safe_hotkey(self.next_row)))
             self.hotkeys.append(keyboard.add_hotkey("f2", self._safe_hotkey(self.next_row)))
@@ -353,13 +353,19 @@ class GlobalController:
             self.total_price = self.compute_total(qty, price)
 
             self.state = "SEQ"
+            # skips
+            self.press_enter()
+            self.press_enter()
 
+            # paste date
             self.paste(self.date_value)
             self.press_enter()
 
+            # paste qty
             self.paste(qty)
             self.press_enter()
 
+            # paste price
             self.paste(price)
             self.press_enter()
 
