@@ -5,18 +5,18 @@ import traceback
 import time
 import functools
 import threading
-from datetime import datetime
 
 import pandas as pd
 import keyboard
 import pyperclip
 import pyautogui
 
-from PyQt6.QtCore import Qt, QObject, QThread, pyqtSignal, QTimer
+from PyQt6.QtCore import Qt, QObject, QThread, pyqtSignal, QTimer, QDate
 from PyQt6.QtWidgets import (
     QApplication,
     QWidget,
     QVBoxLayout,
+    QHBoxLayout,
     QLabel,
     QPushButton,
     QFileDialog,
@@ -24,7 +24,7 @@ from PyQt6.QtWidgets import (
     QTableWidgetItem,
     QMessageBox,
     QProgressBar,
-    QLineEdit,
+    QDateEdit,
 )
 
 from parsers import pdfParser, csvParser
@@ -33,7 +33,7 @@ from parsers import pdfParser, csvParser
 # ================= LOGGING =================
 
 def get_base_dir():
-    if getattr(sys, 'frozen', False):  # PyInstaller check
+    if getattr(sys, 'frozen', False):
         return os.path.dirname(sys.executable)
     return os.path.dirname(os.path.abspath(__file__))
 
@@ -56,6 +56,7 @@ def setup_logging():
 
 LOG_FILE = setup_logging()
 
+
 # ================= SAFE ERROR NOTIFIER =================
 
 ERROR_NOTIFIER = None
@@ -63,10 +64,12 @@ ERROR_NOTIFIER = None
 
 class ErrorNotifier(QObject):
     error = pyqtSignal(str, str)
+    info = pyqtSignal(str, str)
 
     def __init__(self):
         super().__init__()
         self.error.connect(self.show_error)
+        self.info.connect(self.show_info)
 
     def show_error(self, title, message):
         try:
@@ -83,6 +86,12 @@ class ErrorNotifier(QObject):
         except Exception:
             pass
 
+    def show_info(self, title, message):
+        try:
+            QMessageBox.information(None, title, message)
+        except Exception:
+            pass
+
 
 def notify_error(title, message):
     try:
@@ -93,6 +102,14 @@ def notify_error(title, message):
     try:
         if ERROR_NOTIFIER is not None:
             ERROR_NOTIFIER.error.emit(title, message)
+    except Exception:
+        pass
+
+
+def notify_info(title, message):
+    try:
+        if ERROR_NOTIFIER is not None:
+            ERROR_NOTIFIER.info.emit(title, message)
     except Exception:
         pass
 
@@ -218,7 +235,16 @@ class Overlay(QWidget):
         row = self.controller.row
 
         if df is None or row >= len(df):
-            self.label.setText("DONE")
+            self.label.setText(
+                f"DONE\n"
+                f"NDC: \n"
+                f"QTY: \n"
+                f"PRICE: \n"
+                f"TOTAL: \n"
+                f"DATE: {self.controller.date_value}\n"
+                f"STATE: DONE\n"
+                f"Insert=NDC | Del=SEQ | End/F2=NEXT | Home=PREV"
+            )
             return
 
         r = df.iloc[row]
@@ -231,7 +257,7 @@ class Overlay(QWidget):
             f"TOTAL: {r.get('TOTAL_PRICE', '')}\n"
             f"DATE: {self.controller.date_value}\n"
             f"STATE: {self.controller.state}\n"
-            f"PgUp=NDC | PgDn=SEQ | Home/F2=NEXT | Del=PREV"
+            f"Insert=NDC | Del=SEQ | End/F2=NEXT | Home=PREV"
         )
 
     def closeEvent(self, event):
@@ -273,15 +299,11 @@ class GlobalController:
 
     def register(self):
         try:
-            self.hotkeys.append(keyboard.add_hotkey("page up", self._safe_hotkey(self.send_ndc)))
-
-            # Both Page Down and End will send the sequence.
-            self.hotkeys.append(keyboard.add_hotkey("page down", self._safe_hotkey(self.send_sequence)))
-            # self.hotkeys.append(keyboard.add_hotkey("end", self._safe_hotkey(self.send_sequence)))
-
-            self.hotkeys.append(keyboard.add_hotkey("home", self._safe_hotkey(self.next_row)))
+            self.hotkeys.append(keyboard.add_hotkey("insert", self._safe_hotkey(self.send_ndc)))
+            self.hotkeys.append(keyboard.add_hotkey("delete", self._safe_hotkey(self.send_sequence)))
+            self.hotkeys.append(keyboard.add_hotkey("end", self._safe_hotkey(self.next_row)))
             self.hotkeys.append(keyboard.add_hotkey("f2", self._safe_hotkey(self.next_row)))
-            self.hotkeys.append(keyboard.add_hotkey("delete", self._safe_hotkey(self.prev_row)))
+            self.hotkeys.append(keyboard.add_hotkey("home", self._safe_hotkey(self.prev_row)))
 
         except Exception:
             notify_error(
@@ -353,19 +375,16 @@ class GlobalController:
             self.total_price = self.compute_total(qty, price)
 
             self.state = "SEQ"
-            # skips
+
             self.press_enter()
             self.press_enter()
 
-            # paste date
             self.paste(self.date_value)
             self.press_enter()
 
-            # paste qty
             self.paste(qty)
             self.press_enter()
 
-            # paste price
             self.paste(price)
             self.press_enter()
 
@@ -380,12 +399,23 @@ class GlobalController:
             return
 
         if self.df is None or len(self.df) == 0:
+            self.state = "DONE"
+            return
+
+        if self.row >= len(self.df):
+            self.state = "DONE"
             return
 
         if self.row < len(self.df) - 1:
             self.row += 1
+            self.state = "READY"
+            return
 
-        self.state = "READY"
+        self.row = len(self.df)
+        self.state = "DONE"
+        self.total_price = ""
+
+        notify_info("Done", "All invoice rows are complete.")
 
     def prev_row(self):
         if self.busy:
@@ -394,7 +424,9 @@ class GlobalController:
         if self.df is None or len(self.df) == 0:
             return
 
-        if self.row > 0:
+        if self.row >= len(self.df):
+            self.row = len(self.df) - 1
+        elif self.row > 0:
             self.row -= 1
 
         self.state = "READY"
@@ -418,7 +450,6 @@ class App(QWidget):
         self.overlay = None
         self.controller = None
 
-        # Used to prevent itemChanged loops while loading/updating table
         self.loading_table = False
 
         layout = QVBoxLayout()
@@ -434,10 +465,16 @@ class App(QWidget):
         self.process_btn.clicked.connect(lambda: self.start_processing())
         layout.addWidget(self.process_btn)
 
-        self.date_input = QLineEdit()
-        self.date_input.setPlaceholderText("MM/DD/YYYY")
-        self.date_input.setText(datetime.now().strftime("%m/%d/%Y"))
+        self.date_label = QLabel("Invoice Date")
+        self.date_label.setStyleSheet("font-size:15px; font-weight:bold;")
+        layout.addWidget(self.date_label)
+
+        self.date_input = QDateEdit()
+        self.date_input.setCalendarPopup(True)
+        self.date_input.setDisplayFormat("MM/dd/yyyy")
+        self.date_input.setDate(QDate.currentDate())
         self.date_input.setFixedHeight(40)
+        self.date_input.dateChanged.connect(lambda: self.sync_controller_date())
         layout.addWidget(self.date_input)
 
         self.summary = QLabel("Rows: 0 | Total: 0")
@@ -446,6 +483,10 @@ class App(QWidget):
 
         self.progress = QProgressBar()
         layout.addWidget(self.progress)
+
+        self.table_label = QLabel("Invoice Lines")
+        self.table_label.setStyleSheet("font-size:15px; font-weight:bold;")
+        layout.addWidget(self.table_label)
 
         self.table = QTableWidget()
         self.table.itemChanged.connect(self.on_table_item_changed)
@@ -456,12 +497,29 @@ class App(QWidget):
         self.add_line_btn.clicked.connect(lambda: self.add_new_line())
         layout.addWidget(self.add_line_btn)
 
+        overlay_btn_layout = QHBoxLayout()
+
         self.start_overlay_btn = QPushButton("START OVERLAY")
         self.start_overlay_btn.setFixedHeight(50)
         self.start_overlay_btn.clicked.connect(lambda: self.start_overlay())
-        layout.addWidget(self.start_overlay_btn)
+        overlay_btn_layout.addWidget(self.start_overlay_btn)
+
+        self.close_overlay_btn = QPushButton("CLOSE OVERLAY")
+        self.close_overlay_btn.setFixedHeight(50)
+        self.close_overlay_btn.clicked.connect(lambda: self.close_overlay())
+        overlay_btn_layout.addWidget(self.close_overlay_btn)
+
+        layout.addLayout(overlay_btn_layout)
 
         self.setLayout(layout)
+
+    def selected_invoice_date(self):
+        return self.date_input.date().toString("MM/dd/yyyy")
+
+    @safe_call("Sync Date Error")
+    def sync_controller_date(self):
+        if self.controller is not None:
+            self.controller.date_value = self.selected_invoice_date()
 
     @safe_call("File Picker Error")
     def pick_file(self, event):
@@ -499,7 +557,6 @@ class App(QWidget):
         self.worker.finished.connect(self.on_done)
         self.worker.error.connect(self.on_error)
 
-        # Proper thread cleanup.
         self.worker.finished.connect(self.thread.quit)
         self.worker.error.connect(self.thread.quit)
 
@@ -521,7 +578,6 @@ class App(QWidget):
         if not isinstance(df, pd.DataFrame):
             raise TypeError("Parser returned invalid data.")
 
-        # Make editable safely
         self.df = df.copy().astype(object)
 
         self.load_table(self.df)
@@ -578,10 +634,8 @@ class App(QWidget):
         column_name = self.df.columns[col]
         new_value = item.text()
 
-        # Update real DataFrame
         self.df.at[row, column_name] = new_value
 
-        # If QTY or PRICE changed, recalculate TOTAL_PRICE automatically
         self.recalculate_total_for_row(row, changed_column=column_name)
 
         self.update_summary()
@@ -589,7 +643,6 @@ class App(QWidget):
 
     @safe_call("Add New Line Error")
     def add_new_line(self):
-        # If no file was processed yet, create a default invoice table
         if self.df is None:
             self.df = pd.DataFrame(
                 columns=["NDC", "QTY", "PRICE", "TOTAL_PRICE"],
@@ -603,10 +656,8 @@ class App(QWidget):
 
         new_row_index = len(self.df)
 
-        # Add empty row to real DataFrame
         self.df.loc[new_row_index] = {col: "" for col in self.df.columns}
 
-        # Add empty row to visible table
         self.loading_table = True
 
         try:
@@ -621,7 +672,6 @@ class App(QWidget):
         self.update_summary()
         self.sync_controller_data()
 
-        # Scroll to the new row
         self.table.scrollToBottom()
         self.table.setCurrentCell(new_row_index, 0)
 
@@ -646,7 +696,6 @@ class App(QWidget):
             if col not in self.df.columns:
                 return
 
-        # Only auto-calculate when QTY or PRICE changes
         if changed_column not in ["QTY", "PRICE"]:
             return
 
@@ -677,10 +726,6 @@ class App(QWidget):
 
     @safe_call("Sync Overlay Data Error")
     def sync_controller_data(self):
-        """
-        Keeps overlay/controller data updated when user edits table.
-        Without this, overlay keeps old copied data.
-        """
         if self.controller is None:
             return
 
@@ -695,8 +740,12 @@ class App(QWidget):
 
         if len(self.controller.df) == 0:
             self.controller.row = 0
+        elif current_row >= len(self.controller.df):
+            self.controller.row = len(self.controller.df)
         else:
             self.controller.row = max(0, min(current_row, len(self.controller.df) - 1))
+
+        self.sync_controller_date()
 
     @safe_call("Summary Error")
     def update_summary(self):
@@ -722,7 +771,6 @@ class App(QWidget):
             QMessageBox.warning(self, "Error", "No data. Process a file first.")
             return
 
-        # Prevent duplicate global hotkeys.
         try:
             if self.overlay is not None:
                 self.overlay.close()
@@ -734,14 +782,29 @@ class App(QWidget):
         except Exception:
             notify_error("Overlay Cleanup Error", traceback.format_exc())
 
-        self.controller = GlobalController(self.df, self.date_input.text())
+        self.controller = GlobalController(self.df, self.selected_invoice_date())
         self.overlay = Overlay(self.controller)
         self.overlay.show()
 
+    @safe_call("Close Overlay Error")
+    def close_overlay(self):
+        if self.overlay is not None:
+            self.overlay.close()
+            self.overlay = None
+
+        if self.controller is not None:
+            self.controller.unregister()
+            self.controller = None
+
     def closeEvent(self, event):
         try:
+            if self.overlay is not None:
+                self.overlay.close()
+                self.overlay = None
+
             if self.controller is not None:
                 self.controller.unregister()
+                self.controller = None
 
             if self.thread is not None and self.thread.isRunning():
                 self.thread.quit()
@@ -766,6 +829,4 @@ if __name__ == "__main__":
     except Exception:
         notify_error("Startup Error", traceback.format_exc())
 
-    # Do not wrap this with sys.exit().
-    # If an exception is handled, the app remains alive.
     app.exec()
