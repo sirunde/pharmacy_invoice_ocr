@@ -155,7 +155,6 @@ def global_thread_exception_hook(args):
 sys.excepthook = global_exception_hook
 threading.excepthook = global_thread_exception_hook
 
-
 # ================= PARSER WORKER =================
 
 class ParserWorker(QObject):
@@ -204,7 +203,6 @@ class Overlay(QWidget):
         self.controller = controller
 
         self.setWindowFlags(
-            Qt.WindowType.FramelessWindowHint |
             Qt.WindowType.WindowStaysOnTopHint |
             Qt.WindowType.Tool
         )
