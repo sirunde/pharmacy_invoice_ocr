@@ -10,11 +10,11 @@ The application combines distributor specific invoice parsing, an editable PyQt6
 |---|---|---|
 | Kinray | CSV and PDF | `csvParser()` and `kinray()` |
 | McKesson | PDF | `mck()` |
-| Smith (Burlington) | PDF | `smith()` |
+| Smith | PDF | `smith()` |
 
 ## Features
 
-- **Multi distributor invoice processing:** Handles Kinray, McKesson, and Smith (Burlington) invoice formats.
+- **Multi distributor invoice processing:** Handles Kinray, McKesson, and Smith invoice formats.
 - **PDF text extraction:** Uses `pdfplumber` to extract invoice text and identify supported distributor layouts.
 - **CSV normalization:** Processes Kinray CSV data, standardizes NDC values, and maps quantity and cost fields to a common structure.
 - **Invoice data validation:** Checks extracted values and compares line totals against quantity multiplied by unit price where implemented.
@@ -55,7 +55,7 @@ Choose a supported invoice file through the desktop application.
 
 - Kinray invoices can be processed from CSV or PDF.
 - McKesson invoices are processed from PDF.
-- Smith (Burlington) invoices are processed from PDF.
+- Smith invoices are processed from PDF.
 
 ### 2. Extract and normalize invoice data
 
